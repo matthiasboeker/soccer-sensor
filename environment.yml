@@ -1,0 +1,9 @@
+name: soccer-sensor
+dependencies:
+  - numpy
+  - pandas
+  - scikit-learn
+  - pytest
+  - pre_commit
+  - black
+  - mypy
