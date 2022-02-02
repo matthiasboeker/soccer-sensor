@@ -4,6 +4,7 @@ dependencies:
   - pandas
   - scikit-learn
   - pytest
-  - pre_commit
   - black
   - mypy
+  - ipykernel
+  - openpyxl
