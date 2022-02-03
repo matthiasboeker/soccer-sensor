@@ -8,3 +8,6 @@ dependencies:
   - mypy
   - ipykernel
   - openpyxl
+  - dataclasses
+  - matplotlib
+  - statsmodels
