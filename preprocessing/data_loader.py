@@ -3,7 +3,8 @@ from pathlib import Path
 from dataclasses import dataclass
 from enum import Enum
 
-import pandas as pd  #type: ignore
+import pandas as pd  # type: ignore
+import warnings
 
 path_to_input_folder = Path(__file__).parent.parent / "input"
 sheets = [
@@ -46,10 +47,14 @@ def get_player_names(sensor_data) -> List[str]:
     return sensor_data["Fatigue"].columns[1:]
 
 
-def get_player_data(sensor_data: Dict[str, pd.DataFrame], player_name: str) -> Dict[str, pd.Series]:
+def get_player_data(
+    sensor_data: Dict[str, pd.DataFrame], player_name: str
+) -> Dict[str, pd.Series]:
     init = {}
     for attribute, data in sensor_data.items():
-        init[attribute] = pd.Series(data[player_name]).set_axis(data[f"{attribute} Data"], axis=0)
+        init[attribute] = pd.Series(data[player_name]).set_axis(
+            data[f"{attribute} Data"], axis=0
+        )
     return init
 
 
@@ -70,8 +75,11 @@ def initialise_players(sensor_data: Dict[str, pd.DataFrame]) -> Dict[str, Soccer
         )
     return players
 
+
 def load_in_sheet(path_to_file: Path, sheet_name: str) -> pd.DataFrame:
-    data_file = pd.read_excel(path_to_file, sheet_name=sheet_name, engine="openpyxl")
+    with warnings.catch_warnings(record=True):
+        warnings.simplefilter("always")
+        data_file = pd.read_excel(path_to_file, sheet_name=sheet_name, engine="openpyxl")
     return data_file
 
 
