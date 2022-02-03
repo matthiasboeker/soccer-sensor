@@ -76,16 +76,20 @@ def initialise_players(sensor_data: Dict[str, pd.DataFrame]) -> Dict[str, Soccer
     return players
 
 
-def load_in_sheet(path_to_file: Path, sheet_name: str) -> pd.DataFrame:
+def load_in_sheet(path_to_file: List[Path], sheet_name: str) -> pd.DataFrame:
     with warnings.catch_warnings(record=True):
         warnings.simplefilter("always")
-        data_file = pd.read_excel(path_to_file, sheet_name=sheet_name, engine="openpyxl")
-    return data_file
+        output_dataframe = []
+        for path in path_to_file:
+            output_dataframe.append(
+                pd.read_excel(path, sheet_name=sheet_name, engine="openpyxl")
+            )
+    return pd.concat(output_dataframe)
 
 
-def load_in_file(path_to_file):
+def load_in_file(path_to_file: List[Path]) -> Dict[str, pd.DataFrame]:
     return {sheet: load_in_sheet(path_to_file, sheet) for sheet in sheets}
 
 
-def generate_player_data(path_to_data: Path) -> Dict[str, SoccerPlayer]:
+def generate_player_data(path_to_data: List[Path]) -> Dict[str, SoccerPlayer]:
     return initialise_players(load_in_file(path_to_data))
