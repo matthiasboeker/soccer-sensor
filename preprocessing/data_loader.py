@@ -37,10 +37,17 @@ class SoccerPlayer:
     soreness: pd.Series
     stress: pd.Series
     injuries: List[Injury]
+    injury_ts: pd.Series
 
 
-def get_player_names(sensor_data) -> List[str]:
-    return sensor_data["Fatigue"].columns[1:]
+@dataclass(frozen=True)
+class Team:
+    game_performance: pd.DataFrame
+    players: Dict[str, SoccerPlayer]
+
+
+def get_player_names(wellness_data) -> List[str]:
+    return wellness_data["Fatigue"].columns[1:]
 
 
 def get_player_data(
@@ -53,19 +60,29 @@ def get_player_data(
         )
     return init
 
+def clean_duration_of_sleep(sleep_duration_ts: pd.Series) -> pd.Series:
+    return sleep_duration_ts.apply(lambda x: 24 if x > 24 else x)
 
 def get_player_injuries(
     player_injuries: pd.DataFrame, player_name: str
 ) -> Union[List, List[Injury]]:
-    if not player_injuries.loc[player_name, "Player"].empty():
+    injured_players = set(player_injuries["Player"])
+    if player_name in injured_players:
         players_injuries = []
-        for injury in player_injuries.loc[player_name, "Player"].iterrows():
+        for _, injury in player_injuries.loc[player_injuries["Player"]==player_name].iterrows():
             players_injuries.append(
                 Injury(player_name, injury["Injuries"], injury["Date"])
             )
         return players_injuries
     return []
 
+def create_ts_of_injures(time_index: pd.Series, injuries: List[Injury]):
+    """Extract the times when injuries occurred. For now only the time stamps are extracted and
+    an injury is binary event. However, there are more information stored and can be extracted, like
+    how many, injuries, what is injured and severity."""
+    injury_timestamps = [injury.timestamp for injury in injuries]
+    binary_injury_timeseries = {time:(0 if time not in injury_timestamps else 1) for time in time_index.tolist()}
+    return pd.Series(binary_injury_timeseries.values(), index= binary_injury_timeseries.keys())
 
 def initialise_players(
     player_sheets: Dict[str, pd.DataFrame]
@@ -78,16 +95,19 @@ def initialise_players(
     for id, name in enumerate(names):
         values = get_player_data(player_sheets, name)
         injuries = get_player_injuries(players_injuries, name)
+        injury_ts = create_ts_of_injures(values["Fatigue"].index, injuries)
+        sleep_duration = clean_duration_of_sleep(values["SleepDurH"],)
         players[str(id)] = SoccerPlayer(
             name,
             values["Fatigue"],
             values["Mood"],
             values["Readiness"],
-            values["SleepDurH"],
+            sleep_duration,
             values["SleepQuality"],
             values["Soreness"],
             values["Stress"],
             injuries,
+            injury_ts,
         )
     return players
 
@@ -107,7 +127,14 @@ def load_in_file(path_to_file: List[Path]) -> Dict[str, pd.DataFrame]:
     return {sheet: load_in_sheet(path_to_file, sheet) for sheet in sheets}
 
 
-def generate_player_data(path_to_data: List[Path]) -> Dict[str, SoccerPlayer]:
+def generate_team_data(path_to_data: List[Path]) -> Team:
     data_sheets = load_in_file(path_to_data)
-    player_sheets = [sheet for sheet in sheets if sheet not in ["Game Performance"]]
-    return initialise_players({k: data_sheets[k] for k in player_sheets})
+    game_performance = data_sheets["Game Performance"]
+    players = initialise_players({k: data_sheets[k] for k in sheets if k not in ["Game Performance"]})
+    return Team(game_performance, players)
+
+
+def generate_teams(path_to_teams_files: List[List[Path]], team_names: List[str]) -> Dict[str, Team]:
+    return {name: generate_team_data(path_to_team) for name, path_to_team in zip(team_names, path_to_teams_files)}
+
+
