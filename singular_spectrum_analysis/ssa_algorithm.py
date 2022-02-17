@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
@@ -88,23 +88,35 @@ def get_norm_dist_matrix(time_series):
     )
 
 
+def get_multinomial_dist_matrix(time_series):
+    """Extent for different distributions"""
+    unique, counts = np.unique(np.rint(time_series[~np.isnan(time_series)]), return_counts=True)
+    return np.array(
+        [
+            unique[np.argmax(np.random.multinomial(100, counts/sum(counts)))] if np.isnan(point) else point
+            for point in time_series
+        ]
+    )
+
+
 def square_distance_eigenvalues(old_matrix, new_matrix):
     difference = np.square(old_matrix - new_matrix)
     return np.sum(np.sum(difference, axis=1))
 
 
-def em_iterations(trajectory, missing_matrix, order, lag, threshold, total_iterations):
+def em_iterations(trajectory, missing_matrix, rank_determination, lag, tolerance, total_iterations):
     loss = []
     eigen_values = []
+    chosen_rank = -1
     i = 0
     diff = 100
     X = maximise(trajectory, lag)
     old_matrix = X
-    while (i < total_iterations) and (diff > threshold):
+    while (i < total_iterations) and (diff > tolerance):
         if np.mod(i, 50) == 0:
             print(f"Iteration{i}")
-        X, fitted_matrix, eigen_values, threshold = expectation_step(
-            X, trajectory, missing_matrix, order
+        X, fitted_matrix, eigen_values, chosen_rank = expectation_step(
+            X, trajectory, missing_matrix, rank_determination
         )
         diff = square_distance_eigenvalues(old_matrix, fitted_matrix)
         loss.append(diff)
@@ -112,7 +124,7 @@ def em_iterations(trajectory, missing_matrix, order, lag, threshold, total_itera
         X = maximise(X, lag)
         i += 1
 
-    return X, loss, eigen_values, threshold
+    return X, loss, eigen_values, chosen_rank
 
 
 def determine_rank(eigenvalues, threshold):
@@ -122,9 +134,13 @@ def determine_rank(eigenvalues, threshold):
     )[0][0]
 
 
-def expectation_step(matrix_iteration, trajectory, missing_matrix, threshold: float):
+def expectation_step(matrix_iteration, trajectory, missing_matrix, rank_determination: Dict[str, Any]):
+
     svd = apply_svd(matrix_iteration)
-    rank = determine_rank(svd["Sigma"], threshold)
+    if "threshold" in rank_determination.keys():
+        rank = determine_rank(svd["Sigma"], rank_determination["threshold"])
+    else:
+        rank = rank_determination["order"]
     cum_contribution = (svd["Sigma"] ** 2).cumsum() / (svd["Sigma"] ** 2).sum()
     fitted_matrix = fit_matrix(svd, matrix_iteration, rank)
     return (
@@ -137,7 +153,7 @@ def expectation_step(matrix_iteration, trajectory, missing_matrix, threshold: fl
 
 def maximise(iteration_matrix: np.ndarray, lag: int):
     iteration_ts = diagonal_averaging(iteration_matrix)
-    return get_trajectory_matrix(get_norm_dist_matrix(iteration_ts), lag)
+    return get_trajectory_matrix(get_multinomial_dist_matrix(iteration_ts), lag)
 
 
 class SSA:
@@ -149,11 +165,17 @@ class SSA:
 
     @classmethod
     def fit(
-        cls, time_series: np.ndarray, lag: int, order: int, threshold, total_iterations
+        cls, trajectory_matrix: np.ndarray, lag: int, rank_determine: Dict[str, Any], tolerance: float, total_iterations
     ):
-        trajectory_matrix = get_trajectory_matrix(time_series, lag)
         missing_matrix = get_missing_matrix(trajectory_matrix)
         fitted_trajectory, loss, cum_contribution, rank = em_iterations(
-            trajectory_matrix, missing_matrix, order, lag, threshold, total_iterations
+            trajectory_matrix, missing_matrix, rank_determine, lag, tolerance, total_iterations
         )
         return cls(fitted_trajectory, loss, cum_contribution, rank)
+
+    @classmethod
+    def transform_fit(
+            cls, time_series: np.ndarray, lag: int, rank_determine: Dict[str, Any], tolerance: float, total_iterations
+    ):
+        trajectory_matrix = get_trajectory_matrix(time_series, lag)
+        return cls.fit(trajectory_matrix, lag, rank_determine, tolerance, total_iterations)
