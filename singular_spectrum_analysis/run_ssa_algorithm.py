@@ -6,7 +6,7 @@ from matplotlib.ticker import MultipleLocator  # type: ignore
 from preprocessing.data_loader import generate_teams
 from singular_spectrum_analysis.ssa_algorithm import SSA, diagonal_averaging
 
-params = {"lag": 400, "order": 0.995, "threshold": 0.01, "total_iterations": 100}
+params = {"lag": 400, "rank": {"threshold": 0.995}, "tolerance": 0.01, "total_iterations": 100}
 
 
 def create_evaluation_plots(real_series, imputed_series):
@@ -66,11 +66,11 @@ def main():
     print("Players loaded")
 
     fitted_series = [
-        SSA.fit(
+        SSA.transform_fit(
             player.readiness.to_numpy(),
             params["lag"],
-            params["order"],
-            params["threshold"],
+            params["rank"],
+            params["tolerance"],
             params["total_iterations"],
         )
         for _, player in players.items()
