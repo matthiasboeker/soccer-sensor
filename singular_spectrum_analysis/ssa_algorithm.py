@@ -88,6 +88,17 @@ def get_norm_dist_matrix(time_series):
     )
 
 
+def get_multinomial_dist_matrix(time_series):
+    """Extent for different distributions"""
+    unique, counts = np.unique(np.rint(time_series[~np.isnan(time_series)]), return_counts=True)
+    return np.array(
+        [
+            unique[np.argmax(np.random.multinomial(100, counts/sum(counts)))] if np.isnan(point) else point
+            for point in time_series
+        ]
+    )
+
+
 def square_distance_eigenvalues(old_matrix, new_matrix):
     difference = np.square(old_matrix - new_matrix)
     return np.sum(np.sum(difference, axis=1))
@@ -137,7 +148,7 @@ def expectation_step(matrix_iteration, trajectory, missing_matrix, threshold: fl
 
 def maximise(iteration_matrix: np.ndarray, lag: int):
     iteration_ts = diagonal_averaging(iteration_matrix)
-    return get_trajectory_matrix(get_norm_dist_matrix(iteration_ts), lag)
+    return get_trajectory_matrix(get_multinomial_dist_matrix(iteration_ts), lag)
 
 
 class SSA:
