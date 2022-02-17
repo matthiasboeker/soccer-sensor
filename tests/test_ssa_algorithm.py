@@ -1,8 +1,7 @@
-import numpy as np
+import numpy as np  # type: ignore
 from singular_spectrum_analysis.ssa_algorithm import (
     get_trajectory_matrix,
     diagonal_averaging,
-    get_norm_dist_matrix,
 )
 
 
