@@ -110,7 +110,7 @@ def em_iterations(trajectory, missing_matrix, rank_determination, lag, tolerance
     chosen_rank = -1
     i = 0
     diff = 100
-    X = maximise(trajectory, lag)
+    X = np.ma.MaskedArray(np.nan_to_num(trajectory), mask=missing_matrix, fill_value=np.nanmedian(trajectory))
     old_matrix = X
     while (i < total_iterations) and (diff > tolerance):
         if np.mod(i, 50) == 0:
