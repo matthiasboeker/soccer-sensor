@@ -41,7 +41,7 @@ class TsSVD:
     @classmethod
     def fit(
         cls, matrix: np.ndarray, rank: int
-    ) -> TsSVD:
+    ):
         missing_matrix = get_missing_matrix(matrix)
         imputed_matrix, eigenvalues = factorise(
             matrix, missing_matrix, rank)
