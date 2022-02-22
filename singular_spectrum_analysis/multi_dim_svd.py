@@ -23,7 +23,7 @@ def impute(init_matrix: np.ndarray, missing_matrix: np.ndarray, fitted_matrix: n
     return np.nan_to_num(init_matrix) + np.multiply(missing_matrix, fitted_matrix)
 
 def factorise(matrix: np.ndarray, missing_matrix: np.ndarray, rank: int) -> Tuple[np.ndarray, np.ndarray]:
-    X = np.ma.MaskedArray(np.nan_to_num(matrix), mask=missing_matrix, fill_value=np.nanmedian(matrix))
+    X = np.ma.MaskedArray(np.nan_to_num(matrix, nan=np.nanmedian(matrix)), mask=missing_matrix)
     svd = apply_svd(X)
     eigenvalues = np.log(svd["Sigma"] ** 2)
     X = fit_matrix(svd, X, rank)

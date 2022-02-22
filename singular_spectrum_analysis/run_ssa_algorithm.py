@@ -6,7 +6,7 @@ from matplotlib.ticker import MultipleLocator  # type: ignore
 from preprocessing.data_loader import generate_teams
 from singular_spectrum_analysis.ssa_algorithm import SSA, diagonal_averaging
 
-params = {"lag": 700, "rank": {"order": 10}, "tolerance": 0.01, "total_iterations": 100}
+params = {"lag": 31, "rank": {"order": 13}, "tolerance": 0.01, "total_iterations": 200}
 
 
 def create_evaluation_plots(real_series, imputed_series):
