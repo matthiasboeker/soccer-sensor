@@ -8,7 +8,7 @@ from matplotlib.ticker import MultipleLocator  # type: ignore
 from preprocessing.data_loader import generate_teams, SoccerPlayer
 from singular_spectrum_analysis.multi_dim_svd import TsSVD
 
-params = {"rank": 13, "tolerance": 0.01, "total_iterations": 100}
+params = {"rank": 1, "tolerance": 0.01, "total_iterations": 100, "fill_with_decay": False}
 
 
 def merge_ts_to_df(players: Dict[str, SoccerPlayer]):
@@ -28,6 +28,7 @@ def create_evaluation_plots(real_series, imputed_series, eigenvalues):
         ax.plot(imputed, label="Imputed", color="black")
         ax.plot(real, label="True", color="red")
         ax.set_title("Readiness of a Player with Missing Data")
+        ax.set_ylim(1,10)
         ax.tick_params(labelrotation=75, labelsize=9)
         ax.xaxis.set_major_locator(MultipleLocator(30))
         ax.legend()

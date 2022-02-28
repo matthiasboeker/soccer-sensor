@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
@@ -38,7 +38,7 @@ def diagonal_averaging(matrix: np.ndarray) -> np.ndarray:
     )
 
 
-def reconstruct(matrices: List[np.ndarray]) -> np.ndarray:
+def reconstruct(matrices: List[np.ndarray]) -> Union[np.ndarray, int]:
     return sum(diagonal_averaging(matrix) for matrix in matrices)
 
 
@@ -110,7 +110,7 @@ def em_iterations(trajectory, missing_matrix, rank_determination, lag, tolerance
     chosen_rank = -1
     i = 0
     diff = 100
-    X = np.ma.MaskedArray(np.nan_to_num(trajectory), mask=missing_matrix, fill_value=np.nanmedian(trajectory))
+    X = np.ma.MaskedArray(np.nan_to_num(trajectory, nan=float(np.nanmedian(trajectory))), mask=missing_matrix)
     old_matrix = X
     while (i < total_iterations) and (diff > tolerance):
         if np.mod(i, 50) == 0:
