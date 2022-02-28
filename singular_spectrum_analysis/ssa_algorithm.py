@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
@@ -38,7 +38,7 @@ def diagonal_averaging(matrix: np.ndarray) -> np.ndarray:
     )
 
 
-def reconstruct(matrices: List[np.ndarray]) -> np.ndarray:
+def reconstruct(matrices: List[np.ndarray]) -> Union[np.ndarray, int]:
     return sum(diagonal_averaging(matrix) for matrix in matrices)
 
 
