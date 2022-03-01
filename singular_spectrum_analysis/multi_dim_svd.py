@@ -1,8 +1,9 @@
-from typing import Dict, Tuple, Union
+from typing import Dict, Tuple, Union, List
 
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
-from singular_spectrum_analysis.ssa_algorithm import contains_nan, ContainsNAN, NotReversible, get_missing_matrix, calculate_elementary_matrices
+from singular_spectrum_analysis.ssa_algorithm import contains_nan, ContainsNAN, NotReversible, get_missing_matrix, \
+    calculate_elementary_matrices, square_distance_eigenvalues
 
 
 def binary_distance(signal: np.ndarray) -> np.ndarray:
@@ -68,7 +69,7 @@ def normalise(signal: np.ndarray) -> np.ndarray:
 
 
 def decay_fill_signal(signal: np.ndarray, scaling_func=normalise) -> np.ndarray:
-    mean = np.nanmean(signal)[0]
+    mean = np.nanmean(signal)
     fill_df = forward_backward_fill(pd.Series(signal))
     binary_missing = get_binary_missing(signal)
     missing_distance = get_missing_distance(binary_missing)
@@ -98,30 +99,55 @@ def impute(init_matrix: np.ndarray, missing_matrix: np.ndarray, fitted_matrix: n
     return np.nan_to_num(init_matrix) + np.multiply(missing_matrix, fitted_matrix)
 
 
-def factorise(matrix: np.ndarray, missing_matrix: np.ndarray, rank: int, fill_with_decay: bool) -> Tuple[np.ndarray, np.ndarray]:
-    if fill_with_decay:
-        X = apply_decay_filling(matrix)
-    else:
-        X = np.ma.MaskedArray(np.nan_to_num(matrix, nan=np.nanmean(matrix)), mask=missing_matrix)
-    svd = apply_svd(X)
-    eigenvalues = np.log(svd["Sigma"] ** 2)
-    X = fit_matrix(svd, X, rank)
+def factorise(
+        matrix: np.ndarray,
+        missing_matrix: np.ndarray,
+        rank: int,
+        threshold,
+        tolerance) -> Tuple[np.ndarray, np.ndarray, List[float]]:
+    diff = 100
+    i = 0
+    stored_values = []
+    old_matrix = np.zeros((matrix.shape[0], matrix.shape[1]))
+    X = apply_decay_filling(matrix)
+    while i < threshold and tolerance < diff:
+        parameters = {}
+        M = np.tile(np.mean(X,axis=0),(len(X),1))
+        svd = apply_svd(X-M)
+        eigenvalues = np.log(svd["Sigma"] ** 2)
+        fitted_matrix = fit_matrix(svd, X-M, rank) + M
+        diff = square_distance_eigenvalues(old_matrix, fitted_matrix)
+        old_matrix = fitted_matrix
+
+        X = impute(matrix, missing_matrix, fitted_matrix)
+        i += 1
+        parameters["loss"] = diff
+        parameters["matrix"] = X
+        parameters["eigenvalues"] = eigenvalues
+        stored_values.append(parameters)
+
+    loss = [iteration["loss"] for iteration in stored_values]
+    best_index = np.argmin(loss)
+    best_matrix = [iteration["matrix"] for iteration in stored_values][best_index]
+    best_eigenvalues = [iteration["eigenvalues"] for iteration in stored_values][best_index]
+
     return (
-        impute(matrix, missing_matrix, X),
-        eigenvalues,
+        best_matrix,
+        best_eigenvalues,
+        loss,
     )
 
 
 class TsSVD:
-    def __init__(self, matrix: np.ndarray, eigenvalues: np.ndarray):
+    def __init__(self, matrix: np.ndarray, eigenvalues: np.ndarray, loss: List[float]):
         self.matrix = matrix
         self.eigenvalues = eigenvalues
+        self.loss = loss
 
     @classmethod
     def fit(
-        cls, matrix: np.ndarray, rank: int, fill_with_decay=True
-    ):
+        cls, matrix: np.ndarray, rank: int, threshold=100, tolerance=0.1):
         missing_matrix = get_missing_matrix(matrix)
-        imputed_matrix, eigenvalues = factorise(
-            matrix, missing_matrix, rank, fill_with_decay)
-        return cls(imputed_matrix, eigenvalues)
+        imputed_matrix, eigenvalues, loss = factorise(
+            matrix, missing_matrix, rank, threshold, tolerance)
+        return cls(imputed_matrix, eigenvalues, loss)
