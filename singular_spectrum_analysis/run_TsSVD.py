@@ -8,7 +8,7 @@ from matplotlib.ticker import MultipleLocator  # type: ignore
 from preprocessing.data_loader import generate_teams, SoccerPlayer
 from singular_spectrum_analysis.multi_dim_svd import TsSVD
 
-params = {"rank": 1, "tolerance": 0.01, "total_iterations": 100, "fill_with_decay": False}
+params = {"rank": 3, "tolerance": 0.01, "total_iterations": 100}
 
 
 def merge_ts_to_df(players: Dict[str, SoccerPlayer]):

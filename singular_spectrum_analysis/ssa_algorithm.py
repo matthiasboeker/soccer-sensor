@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Union
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
 
+from statsmodels.stats.diagnostic import acorr_ljungbox
 
 class ContainsNAN(Exception):
     """The trajectory matrix contains NAN values."""
@@ -65,15 +66,36 @@ def calculate_elementary_matrices(
     return elementary_matrices
 
 
-def fit_matrix(svd, trajectory_matrix, q):
+def test_for_white_noise(elementary_matrix, alpha, lags):
+    significants = []
+    for i in range(0, elementary_matrix.shape[0]):
+        _, p_value_lags = acorr_ljungbox(np.array(elementary_matrix[i,:]), lags=lags, return_df=False)
+        is_significant = any(p_value > alpha for p_value in p_value_lags)
+        significants.append(is_significant)
+    return all(is_sig for is_sig in significants)
+
+
+def determine_rank(elementary_matrices, lags):
+    matrices_nr = len(elementary_matrices)
+    is_white_noise: bool = False
+    index = 0 #matrices_nr - 1
+    while index < matrices_nr and is_white_noise==False:
+        is_white_noise = test_for_white_noise(elementary_matrices[index], alpha=0.05, lags=lags)
+        index += 1
+    return index
+
+
+def fit_matrix(svd, trajectory_matrix, lags):
     elementary_matrices = calculate_elementary_matrices(svd, trajectory_matrix)
     if not np.allclose(trajectory_matrix, elementary_matrices.sum(axis=0), atol=1e-10):
         raise NotReversible
-    return sum(elementary_matrices[i] for i in range(0, q))
+    rank = determine_rank(elementary_matrices, 30)
+    return sum(elementary_matrices[i] for i in range(0, rank)), rank
 
 
 def impute(missing_matrix, trajectory, fitted_matrix):
     return np.nan_to_num(trajectory) + np.multiply(missing_matrix, fitted_matrix)
+
 
 
 def get_norm_dist_matrix(time_series):
@@ -104,7 +126,7 @@ def square_distance_eigenvalues(old_matrix, new_matrix):
     return np.sum(np.sum(difference, axis=1))
 
 
-def em_iterations(trajectory, missing_matrix, rank_determination, lag, tolerance, total_iterations):
+def em_iterations(trajectory, missing_matrix, lag, tolerance, total_iterations):
     loss = []
     eigen_values = []
     chosen_rank = -1
@@ -116,7 +138,7 @@ def em_iterations(trajectory, missing_matrix, rank_determination, lag, tolerance
         if np.mod(i, 50) == 0:
             print(f"Iteration{i}")
         X, fitted_matrix, eigen_values, chosen_rank = expectation_step(
-            X, trajectory, missing_matrix, rank_determination
+            X, trajectory, missing_matrix, lag
         )
         diff = square_distance_eigenvalues(old_matrix, fitted_matrix)
         loss.append(diff)
@@ -127,27 +149,17 @@ def em_iterations(trajectory, missing_matrix, rank_determination, lag, tolerance
     return X, loss, eigen_values, chosen_rank
 
 
-def determine_rank(eigenvalues, threshold):
-    explained_variance = (eigenvalues ** 2).cumsum() / (eigenvalues ** 2).sum()
-    return np.where(
-        explained_variance == min(explained_variance, key=lambda x: abs(x - threshold))
-    )[0][0]
-
-
-def expectation_step(matrix_iteration, trajectory, missing_matrix, rank_determination: Dict[str, Any]):
-
+def expectation_step(matrix_iteration, trajectory, missing_matrix, lags):
+    M = np.tile(np.mean(matrix_iteration,axis=0),(len(matrix_iteration),1))
     svd = apply_svd(matrix_iteration)
-    if "threshold" in rank_determination.keys():
-        rank = determine_rank(svd["Sigma"], rank_determination["threshold"])
-    else:
-        rank = rank_determination["order"]
     cum_contribution = (svd["Sigma"] ** 2).cumsum() / (svd["Sigma"] ** 2).sum()
-    fitted_matrix = fit_matrix(svd, matrix_iteration, rank)
+    fitted_res_matrix, rank = fit_matrix(svd, matrix_iteration, lags)
+    fitted_matrix = fitted_res_matrix
     return (
         impute(missing_matrix, trajectory, fitted_matrix),
         fitted_matrix,
         cum_contribution,
-        rank,
+        rank
     )
 
 
@@ -165,17 +177,17 @@ class SSA:
 
     @classmethod
     def fit(
-        cls, trajectory_matrix: np.ndarray, lag: int, rank_determine: Dict[str, Any], tolerance: float, total_iterations
+        cls, trajectory_matrix: np.ndarray, lag: int, tolerance: float, total_iterations
     ):
         missing_matrix = get_missing_matrix(trajectory_matrix)
         fitted_trajectory, loss, cum_contribution, rank = em_iterations(
-            trajectory_matrix, missing_matrix, rank_determine, lag, tolerance, total_iterations
+            trajectory_matrix, missing_matrix, lag, tolerance, total_iterations
         )
         return cls(fitted_trajectory, loss, cum_contribution, rank)
 
     @classmethod
     def transform_fit(
-            cls, time_series: np.ndarray, lag: int, rank_determine: Dict[str, Any], tolerance: float, total_iterations
+            cls, time_series: np.ndarray, lag: int, tolerance: float, total_iterations
     ):
         trajectory_matrix = get_trajectory_matrix(time_series, lag)
-        return cls.fit(trajectory_matrix, lag, rank_determine, tolerance, total_iterations)
+        return cls.fit(trajectory_matrix, lag, tolerance, total_iterations)
