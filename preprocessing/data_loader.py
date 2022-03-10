@@ -43,6 +43,7 @@ class SoccerPlayer:
 @dataclass(frozen=True)
 class Team:
     game_performance: pd.DataFrame
+    game_ts: pd.Series
     players: Dict[str, SoccerPlayer]
 
 
@@ -62,7 +63,8 @@ def get_player_data(
 
 
 def clean_duration_of_sleep(sleep_duration_ts: pd.Series) -> pd.Series:
-    return sleep_duration_ts.apply(lambda x: 24 if x > 24 else x)
+    """High numbers are potentially in minutes and not hours --> divide by 60 if higher than x"""
+    return sleep_duration_ts.apply(lambda x: x/60 if x > 24 else x)
 
 
 def get_player_injuries(
@@ -79,6 +81,17 @@ def get_player_injuries(
             )
         return players_injuries
     return []
+
+
+def create_game_ts(time_index: pd.Index, game_performance: pd.DataFrame):
+    binary_game_timeseries = {
+        time: (0 if time not in game_performance["Date"].tolist() else
+               game_performance.loc[game_performance["Date"] == time]["Team Overall Performance"].iat[0])
+        for time in time_index.tolist()
+    }
+    return pd.Series(
+        binary_game_timeseries.values(), index=binary_game_timeseries.keys()
+    )
 
 
 def create_ts_of_injures(time_index: pd.Index, injuries: List[Injury]):
@@ -144,7 +157,9 @@ def generate_team_data(path_to_data: List[Path]) -> Team:
     players = initialise_players(
         {k: data_sheets[k] for k in sheets if k not in ["Game Performance"]}
     )
-    return Team(game_performance, players)
+
+    games_ts = create_game_ts(players["0"].stress.index, game_performance)
+    return Team(game_performance, games_ts, players)
 
 
 def generate_teams(
