@@ -15,7 +15,7 @@ def create_team_csv(teams, path_to_output):
 def create_players_csv(team: Team, team_name: str, path_to_output: Path):
     players = team.players.items()
     for name, player in players:
-        player.to_dataframe().to_csv(path_to_output/team_name/f"player_{name}.csv")
+        player.to_dataframe().to_csv(path_to_output / team_name / f"player_{name}.csv")
 
 
 def group_features(players: List[SoccerPlayer]) -> Dict[str, List[pd.Series]]:
@@ -40,7 +40,9 @@ def convert_json_exportable(grouped_feature: List[pd.Series]):
     return {series.name: series.tolist() for series in grouped_feature}
 
 
-def create_feature_export(grouped_features) -> Tuple[Dict[str, pd.DataFrame], Dict[str, List[pd.Series]]]:
+def create_feature_export(
+    grouped_features,
+) -> Tuple[Dict[str, pd.DataFrame], Dict[str, List[pd.Series]]]:
     json_export = {}
     dataframe_export = {}
     for feature_name in grouped_features.keys():
@@ -48,7 +50,9 @@ def create_feature_export(grouped_features) -> Tuple[Dict[str, pd.DataFrame], Di
             json_exportable = convert_json_exportable(grouped_features[feature_name])
             json_export[feature_name] = json_exportable
         else:
-            dataframe_export[feature_name] = pd.DataFrame(grouped_features[feature_name]).T
+            dataframe_export[feature_name] = pd.DataFrame(
+                grouped_features[feature_name]
+            ).T
     return dataframe_export, json_export
 
 
@@ -57,9 +61,9 @@ def write_feature_csv(feature_dfs: Dict[str, pd.DataFrame], path_to_output: Path
         dataframe.to_csv(path_to_output / f"{feature_name}.csv")
 
 
-def write_feature_json(feature_json: Dict[str, List[pd.Series]],  path_to_output: Path):
+def write_feature_json(feature_json: Dict[str, List[pd.Series]], path_to_output: Path):
     for feature_name, feature in feature_json.items():
-        with open(path_to_output / f"{feature_name}.json", 'w') as fp:
+        with open(path_to_output / f"{feature_name}.json", "w") as fp:
             json.dump({feature_name: feature}, fp)
 
 
@@ -82,8 +86,16 @@ def create_feature_csv_files(teams, path_to_output):
 def main():
     path_to_input_files = Path(__file__).parent.parent / "input"
     path_to_output_files = Path(__file__).parent.parent / "file_output"
-    files = [[path_to_input_files / "rosenborg-women_a_2020.xlsx", path_to_input_files / "rosenborg-women_a_2021.xlsx"],
-             [path_to_input_files / "vifwomen_a_2020.xlsx", path_to_input_files / "vifwomen_a_2021.xlsx"]]
+    files = [
+        [
+            path_to_input_files / "rosenborg-women_a_2020.xlsx",
+            path_to_input_files / "rosenborg-women_a_2021.xlsx",
+        ],
+        [
+            path_to_input_files / "vifwomen_a_2020.xlsx",
+            path_to_input_files / "vifwomen_a_2021.xlsx",
+        ],
+    ]
     team_names = ["VIF", "Rosenborg"]
     teams = generate_teams(files, team_names)
     create_team_csv(teams, path_to_output_files)

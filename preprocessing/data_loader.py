@@ -10,15 +10,15 @@ import warnings
 path_to_input_folder = Path(__file__).parent.parent / "input"
 
 wellness_sheets_names = [
-            "Injury",
-            "Fatigue",
-            "Mood",
-            "Readiness",
-            "SleepDurH",
-            "SleepQuality",
-            "Soreness",
-            "Stress",
-        ]
+    "Injury",
+    "Fatigue",
+    "Mood",
+    "Readiness",
+    "SleepDurH",
+    "SleepQuality",
+    "Soreness",
+    "Stress",
+]
 
 sheets = [
     "Game Performance",
@@ -65,23 +65,25 @@ class SoccerPlayer:
     injury_ts: pd.Series
 
     def to_dataframe(self):
-        feature_df = pd.DataFrame({
-        "daily_load": self.daily_load,
-        "atl": self.atl,
-        "weekly_load": self.weekly_load,
-        "monotony": self.monotony,
-        "strain": self.strain,
-        "acwr": self.acwr,
-        "ctl28": self.ctl28,
-        "ctl42": self.ctl42,
-        "fatigue": self.fatigue,
-        "mood": self.mood,
-        "readiness": self.readiness,
-        "sleep_duration": self.sleep_duration,
-        "sleep_quality": self.sleep_quality,
-        "soreness": self.soreness,
-        "stress": self.stress,
-        "injury_ts": self.injury_ts,},
+        feature_df = pd.DataFrame(
+            {
+                "daily_load": self.daily_load,
+                "atl": self.atl,
+                "weekly_load": self.weekly_load,
+                "monotony": self.monotony,
+                "strain": self.strain,
+                "acwr": self.acwr,
+                "ctl28": self.ctl28,
+                "ctl42": self.ctl42,
+                "fatigue": self.fatigue,
+                "mood": self.mood,
+                "readiness": self.readiness,
+                "sleep_duration": self.sleep_duration,
+                "sleep_quality": self.sleep_quality,
+                "soreness": self.soreness,
+                "stress": self.stress,
+                "injury_ts": self.injury_ts,
+            },
         )
         return feature_df
 
@@ -165,10 +167,12 @@ def create_ts_of_injures(time_index: pd.Index, injuries: List[Injury]):
 
 def initialise_players(
     wellness_sheets: Dict[str, pd.DataFrame],
-    player_records: Dict[str, Dict[str, pd.Series]]
+    player_records: Dict[str, Dict[str, pd.Series]],
 ) -> Dict[str, SoccerPlayer]:
     names = [
-        name for name in list(get_player_names(wellness_sheets)) if not has_numbers(name)
+        name
+        for name in list(get_player_names(wellness_sheets))
+        if not has_numbers(name)
     ]
     players_injuries = wellness_sheets["Injury"]
     del wellness_sheets["Injury"]
@@ -224,17 +228,25 @@ def load_in_workbooks(path_to_file: List[Path]) -> Dict[str, pd.DataFrame]:
                 merged_dictionaries[sheet_name].append(sheet.iloc[:-1, :])
 
     return {
-        sheet_name: pd.concat(sheet, axis=0,  ignore_index=True)
+        sheet_name: pd.concat(sheet, axis=0, ignore_index=True)
         for sheet_name, sheet in merged_dictionaries.items()
     }
 
 
-def clean_workbooks(workbook: Dict[str, pd.DataFrame]) -> Dict[str, Dict[str, pd.DataFrame]]:
-    player_sheets = {name: sheet for name, sheet in workbook.items() if name not in sheets+["Illness"]}
-    wellness_sheets = {name: sheet for name, sheet in workbook.items() if name in wellness_sheets_names}
+def clean_workbooks(
+    workbook: Dict[str, pd.DataFrame]
+) -> Dict[str, Dict[str, pd.DataFrame]]:
+    player_sheets = {
+        name: sheet
+        for name, sheet in workbook.items()
+        if name not in sheets + ["Illness"]
+    }
+    wellness_sheets = {
+        name: sheet for name, sheet in workbook.items() if name in wellness_sheets_names
+    }
     recorded_signals = {}
     for name, sheet in player_sheets.items():
-        non_continuous_signals = ["SRPE", "RPE","Duration [min]"]
+        non_continuous_signals = ["SRPE", "RPE", "Duration [min]"]
         filled_dates = sheet["Date"].ffill()
         dates = sheet["Date"].dropna()
         player_records = {}
@@ -256,8 +268,7 @@ def generate_team_data(path_to_data: List[Path]) -> Team:
     game_performance = raw_workbook["Game Performance"]
     recorded_signals, workbook = clean_workbooks(raw_workbook)
     players = initialise_players(
-        {k: v for k, v in workbook.items() if k != "Game Performance"},
-        recorded_signals
+        {k: v for k, v in workbook.items() if k != "Game Performance"}, recorded_signals
     )
 
     games_ts = create_game_ts(players["0"].stress.index, game_performance)
