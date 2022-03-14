@@ -1,4 +1,4 @@
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union, Tuple
 from pathlib import Path
 from dataclasses import dataclass
 from collections import defaultdict
@@ -235,7 +235,7 @@ def load_in_workbooks(path_to_file: List[Path]) -> Dict[str, pd.DataFrame]:
 
 def clean_workbooks(
     workbook: Dict[str, pd.DataFrame]
-) -> Dict[str, Dict[str, pd.DataFrame]]:
+) -> Tuple[Dict[str, Dict[Any, Any]], Dict[str, Any]]:
     player_sheets = {
         name: sheet
         for name, sheet in workbook.items()

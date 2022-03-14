@@ -2,7 +2,7 @@ from typing import Dict, List, Tuple
 from pathlib import Path
 import json
 
-import pandas as pd
+import pandas as pd  # type: ignore
 
 from preprocessing.data_loader import generate_teams, Team, SoccerPlayer
 
@@ -19,7 +19,7 @@ def create_players_csv(team: Team, team_name: str, path_to_output: Path):
 
 
 def group_features(players: List[SoccerPlayer]) -> Dict[str, List[pd.Series]]:
-    features = {}
+    features: Dict[str, List[pd.Series]] = {}
     for attr in players[0].__dataclass_fields__:
         if attr not in ["name", "date_index"]:
             features[attr] = []
